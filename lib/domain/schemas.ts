@@ -1,22 +1,43 @@
 import { z } from "zod";
 
-const UK_POSTCODE = /^[A-Z]{1,2}[0-9][A-Z0-9]?\s*[0-9][A-Z]{2}$/i;
-const UK_PHONE = /^(?:\+44|0)\s*[\d\s-]{9,13}$/;
+export const POSTCODE_REGEX = /^[A-Z]{1,2}[0-9][A-Z0-9]?\s*[0-9][A-Z]{2}$/i;
+export const UK_PHONE_REGEX = /^(?:\+44|0)\s*[\d\s-]{9,13}$/;
 
 export const TRADES = ["plumber", "electrician"] as const;
 export type Trade = (typeof TRADES)[number];
 
+export const PreviewStatus = {
+  OK: "ok",
+  NO_GBP: "no_gbp",
+  RANK_TOO_LOW: "rank_too_low",
+  TEST_DATA: "test_data",
+} as const;
+export type PreviewStatus = (typeof PreviewStatus)[keyof typeof PreviewStatus];
+
+export const KeywordVolumeSchema = z.object({
+  keyword: z.string(),
+  volume: z.number(),
+});
+export type KeywordVolume = z.infer<typeof KeywordVolumeSchema>;
+
+export const GeoResultSchema = z.object({
+  town: z.string(),
+  county: z.string(),
+  lat: z.number(),
+  lng: z.number(),
+});
+export type GeoResult = z.infer<typeof GeoResultSchema>;
+
 export const PreviewRequestSchema = z.object({
   business_name: z.string().min(2).max(100),
-  postcode: z.string().regex(UK_POSTCODE, "Invalid UK postcode"),
-  phone: z.string().regex(UK_PHONE, "Invalid UK phone number"),
+  postcode: z.string().regex(POSTCODE_REGEX, "Invalid UK postcode"),
+  phone: z.string().regex(UK_PHONE_REGEX, "Invalid UK phone number"),
   avg_job_value: z.number().min(10).max(10000),
   trade: z.enum(TRADES),
   jobs_per_month: z.enum(["under_20", "20_50", "50_100", "100_plus"]).optional(),
   website: z.union([z.string().url(), z.literal("")]).optional(),
   ref: z.string().optional(),
 });
-
 export type PreviewRequest = z.infer<typeof PreviewRequestSchema>;
 
 const CompetitorSchema = z.object({
@@ -27,7 +48,9 @@ const CompetitorSchema = z.object({
 
 const FormulaInputsSchema = z.object({
   total_searches: z.number(),
-  top_3_capture_rate: z.number(),
+  current_local_pack_rank: z.number().nullable(),
+  current_organic_rank: z.number().nullable(),
+  target_ctr: z.number(),
   current_ctr: z.number(),
   gap_ctr: z.number(),
   conversion_rate: z.number(),
@@ -35,7 +58,12 @@ const FormulaInputsSchema = z.object({
 });
 
 export const PreviewResponseSchema = z.object({
-  status: z.enum(["ok", "no_gbp", "rank_too_low", "test_data"]),
+  status: z.enum([
+    PreviewStatus.OK,
+    PreviewStatus.NO_GBP,
+    PreviewStatus.RANK_TOO_LOW,
+    PreviewStatus.TEST_DATA,
+  ]),
   business: z.object({
     name: z.string(),
     place_id: z.string().nullable(),
@@ -47,21 +75,14 @@ export const PreviewResponseSchema = z.object({
     website: z.string().nullable(),
     business_types: z.array(z.string()),
   }),
-  geo: z.object({
-    town: z.string(),
-    county: z.string(),
-    lat: z.number(),
-    lng: z.number(),
-  }),
+  geo: GeoResultSchema,
   competitors: z.object({
     top_3: z.array(CompetitorSchema),
     current_rank: z.union([z.number(), z.literal(">20")]),
   }),
   search: z.object({
     total_monthly_volume: z.number(),
-    keyword_breakdown: z.array(
-      z.object({ keyword: z.string(), volume: z.number() }),
-    ),
+    keyword_breakdown: z.array(KeywordVolumeSchema),
     volume_source: z.enum(["dataforseo", "fallback"]),
   }),
   loss: z.object({
@@ -80,5 +101,4 @@ export const PreviewResponseSchema = z.object({
   }),
   preview_url: z.string().url().nullable(),
 });
-
 export type PreviewResponse = z.infer<typeof PreviewResponseSchema>;

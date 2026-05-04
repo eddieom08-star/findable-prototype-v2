@@ -23,6 +23,9 @@ importers:
       react-dom:
         specifier: 19.2.4
         version: 19.2.4(react@19.2.4)
+      true-myth:
+        specifier: ^9.3.1
+        version: 9.3.1
       zod:
         specifier: ^4.4.2
         version: 4.4.2
@@ -2256,6 +2259,10 @@ packages:
   totalist@3.0.1:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==, tarball: https://registry.npmjs.org/totalist/-/totalist-3.0.1.tgz}
     engines: {node: '>=6'}
+
+  true-myth@9.3.1:
+    resolution: {integrity: sha512-a+u2L3y6XF3HLBJrSox8pRmod2o/3k28hpXX8OD56mLnffmXOwzQFBDBT0gy8ROIReLvdVvMPtQYtCsgFldfMw==, tarball: https://registry.npmjs.org/true-myth/-/true-myth-9.3.1.tgz}
+    engines: {node: 18.* || >= 20.*}
 
   ts-api-utils@2.5.0:
     resolution: {integrity: sha512-OJ/ibxhPlqrMM0UiNHJ/0CKQkoKF243/AEmplt3qpRgkW8VG7IfOS41h7V8TjITqdByHzrjcS/2si+y4lIh8NA==, tarball: https://registry.npmjs.org/ts-api-utils/-/ts-api-utils-2.5.0.tgz}
@@ -4710,6 +4717,8 @@ snapshots:
       is-number: 7.0.0
 
   totalist@3.0.1: {}
+
+  true-myth@9.3.1: {}
 
   ts-api-utils@2.5.0(typescript@5.9.3):
     dependencies:
