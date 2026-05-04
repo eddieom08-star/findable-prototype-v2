@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 const ConfigSchema = z.object({
-  KV_REST_API_URL: z.string().url(),
-  KV_REST_API_TOKEN: z.string().min(1),
+  // KV is optional in dev (memory cache fallback); required at deploy via Vercel env injection.
+  KV_REST_API_URL: z.string().url().optional(),
+  KV_REST_API_TOKEN: z.string().min(1).optional(),
   KV_REST_API_READ_ONLY_TOKEN: z.string().min(1).optional(),
 
   GOOGLE_PLACES_API_KEY: z.string().min(1).optional(),
