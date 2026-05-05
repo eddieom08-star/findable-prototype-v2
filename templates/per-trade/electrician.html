@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{{business_name}} — {{town}} Electricians</title>
+<style>
+  :root {
+    --cream: #F5F0E6;
+    --charcoal: #2A2520;
+    --charcoal-soft: #4a4339;
+    --navy: #1E3A5F;
+    --burnt-orange: #D4612A;
+    --burnt-orange-dark: #b14d1c;
+    --rule: #e2dccd;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--cream);
+    color: var(--charcoal);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { max-width: 100%; display: block; }
+
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+  /* HERO */
+  .hero { position: relative; background: var(--navy); color: var(--cream); }
+  .hero-photo {
+    position: relative; width: 100%; aspect-ratio: 16/10;
+    background: var(--charcoal) center/cover no-repeat;
+    background-image: url("{{photo_1_url}}");
+  }
+  .hero-photo::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(30,58,95,0.15) 0%, rgba(30,58,95,0.85) 85%);
+  }
+  .hero-overlay {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 24px 20px; z-index: 1;
+  }
+  .hero-overlay h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600; font-size: 28px; line-height: 1.1;
+    margin: 0 0 6px 0; color: var(--cream);
+  }
+  .hero-overlay .town { font-size: 15px; opacity: 0.9; margin: 0; }
+  .hero-cta {
+    display: flex; gap: 10px; padding: 16px 20px 20px;
+    background: var(--navy); border-bottom: 1px solid rgba(245,240,230,0.1);
+  }
+  .btn {
+    flex: 1; min-height: 48px; display: inline-flex;
+    align-items: center; justify-content: center;
+    padding: 0 18px; border-radius: 999px;
+    font-weight: 600; font-size: 15px; letter-spacing: 0.01em;
+    text-align: center;
+  }
+  .btn-primary { background: var(--burnt-orange); color: #fff; }
+  .btn-primary:active { background: var(--burnt-orange-dark); }
+  .btn-secondary { background: transparent; color: var(--cream); border: 1.5px solid var(--cream); }
+
+  /* TRUST STRIP */
+  .trust { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+  .stars { color: var(--burnt-orange); font-size: 18px; letter-spacing: 1px; }
+  .reviews { font-size: 14px; color: var(--charcoal-soft); }
+  .badge {
+    background: var(--cream); border: 1px solid var(--rule);
+    color: var(--charcoal-soft); font-size: 12px;
+    padding: 4px 10px; border-radius: 999px; font-weight: 600;
+  }
+
+  /* SECTIONS */
+  section { padding: 28px 0; }
+  h2 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600; font-size: 22px;
+    color: var(--navy); margin: 0 0 14px 0;
+  }
+
+  /* SERVICES */
+  .services { list-style: none; padding: 0; margin: 0; }
+  .services li {
+    padding: 14px 0; border-bottom: 1px solid var(--rule);
+    font-size: 16px;
+  }
+  .services li:last-child { border-bottom: 0; }
+  .services li strong { display: block; font-weight: 600; }
+  .services li span { color: var(--charcoal-soft); font-size: 14px; }
+
+  /* ABOUT */
+  .about-inner { display: grid; grid-template-columns: 1fr; gap: 18px; }
+  .about-photo {
+    width: 100%; aspect-ratio: 4/3;
+    background: var(--charcoal) center/cover no-repeat;
+    background-image: url("{{photo_2_url}}");
+    border-radius: 6px;
+  }
+  .about-copy p { margin: 0 0 12px 0; }
+  .about-copy .since { font-size: 14px; color: var(--charcoal-soft); margin-top: 6px; }
+
+  /* PHOTO GRID */
+  .photos { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .photo-cell {
+    aspect-ratio: 1/1;
+    background: var(--charcoal) center/cover no-repeat;
+    border-radius: 4px;
+  }
+
+  /* CALLBACK */
+  .callback {
+    text-align: center; padding: 36px 20px;
+    background: var(--navy); color: var(--cream); margin: 0 -20px;
+  }
+  .callback h2 { color: var(--cream); }
+  .callback .btn { margin-top: 8px; max-width: 320px; }
+
+  /* FOOTER */
+  footer { padding: 22px 0 36px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--charcoal-soft); }
+  footer p { margin: 0 0 6px 0; }
+  footer .attribution { opacity: 0.75; font-style: italic; }
+  footer .findable { font-weight: 600; color: var(--charcoal); }
+
+  /* DESKTOP */
+  @media (min-width: 720px) {
+    .hero-overlay { padding: 36px 32px; }
+    .hero-overlay h1 { font-size: 40px; }
+    .hero-cta { padding: 20px 32px; }
+    .about-inner { grid-template-columns: 1fr 1.2fr; align-items: center; }
+    h2 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-photo" role="img" aria-label="{{business_name}} work photo"></div>
+  <div class="hero-overlay">
+    <h1>{{business_name}}</h1>
+    <p class="town">Electricians in {{town}}</p>
+  </div>
+  <div class="hero-cta">
+    <a class="btn btn-primary" href="tel:{{phone_href}}">Call {{phone}}</a>
+    <a class="btn btn-secondary" href="#callback">Request a call back</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="trust">
+    {{?rating}}<span class="stars" aria-label="Rating {{rating}} out of 5">★ {{rating}}</span>{{/rating}}
+    {{?review_count}}<span class="reviews">{{review_count}} Google reviews</span>{{/review_count}}
+    <span class="badge">NICEIC ready</span>
+  </div>
+
+  <section>
+    <h2>What we do</h2>
+    <ul class="services">
+      <li>
+        <strong>Emergency call-outs, day or night</strong>
+        <span>Lights out, tripping fuse box, no power — we'll be on site fast.</span>
+      </li>
+      <li>
+        <strong>EICR &amp; electrical safety reports</strong>
+        <span>For landlords, sales, and peace of mind. Certificate issued the same day.</span>
+      </li>
+      <li>
+        <strong>Fuse box and consumer unit upgrades</strong>
+        <span>Old wiring made safe. RCD protection sorted properly.</span>
+      </li>
+      <li>
+        <strong>Rewires, sockets, and lighting</strong>
+        <span>Full rewires through to a single socket. Tidy work, signed off.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>About us</h2>
+    <div class="about-inner">
+      <div class="about-photo" role="img" aria-label="{{business_name}} at work"></div>
+      <div class="about-copy">
+        <p>When the lights go out at 11pm or the fuse box keeps tripping every time the kettle boils, you don't want a sales pitch — you want it sorted, safely.</p>
+        <p>That's the job. Show up when we say we will, fix it once, leave the place tidy and certificate in hand. Most of our work in {{town}} comes from neighbours and old customers, so we look after both.</p>
+        {{?years_in_business}}<p class="since">Trusted in {{town}} since {{years_in_business}}.</p>{{/years_in_business}}
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Recent jobs</h2>
+    <div class="photos">
+      <div class="photo-cell" style="background-image: url('{{photo_1_url}}')"></div>
+      <div class="photo-cell" style="background-image: url('{{photo_2_url}}')"></div>
+      <div class="photo-cell" style="background-image: url('{{photo_3_url}}')"></div>
+    </div>
+  </section>
+
+  <aside class="callback" id="callback">
+    <h2>Got a job for us?</h2>
+    <p>Quickest way is a call. We answer ours.</p>
+    <a class="btn btn-primary" href="tel:{{phone_href}}">Call {{phone}}</a>
+  </aside>
+
+  <footer>
+    <p class="findable">Preview by Findable.</p>
+    <p>Generated from public Google data on {{as_of_date}}. The real version goes live after we kick off — copy, photos, services and structure all editable in the dashboard.</p>
+    <p class="attribution">Photos powered by Google.</p>
+  </footer>
+
+</main>
+
+</body>
+</html>
