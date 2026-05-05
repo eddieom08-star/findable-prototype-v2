@@ -5,6 +5,7 @@ import { loadConfig } from "@/lib/infrastructure/config";
 import { createLogger } from "@/lib/infrastructure/logger";
 import { createCache } from "@/lib/infrastructure/cache";
 import { createPostcodesIoAdapter } from "@/lib/infrastructure/integrations/postcodes-io";
+import { createPlacesAdapter } from "@/lib/infrastructure/integrations/places";
 import { runPreview } from "@/lib/application/preview-usecase";
 import { mapDomainErrorToHttp } from "@/lib/interface/http/error-mapper";
 
@@ -17,6 +18,7 @@ const config = loadConfig();
 const logger = createLogger(config);
 const cache = createCache(config, logger);
 const geo = createPostcodesIoAdapter(cache, logger);
+const places = createPlacesAdapter(config, logger);
 const clock = { now: () => new Date() };
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       phone: input.phone,
     });
 
-    const result = await runPreview(input, { geo, logger: reqLogger, clock }, requestId);
+    const result = await runPreview(input, { geo, places, logger: reqLogger, clock }, requestId);
 
     const elapsed = Math.round(performance.now() - started);
 
