@@ -15,8 +15,14 @@ const ConfigSchema = z.object({
   COMPANIES_HOUSE_API_KEY: z.string().min(1).optional(),
   FIRECRAWL_API_KEY: z.string().min(1).optional(),
 
-  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   NEXT_PUBLIC_BRAND: z.string().default("findable"),
+
+  // Vercel auto-injects these on every deploy. We use them to derive the canonical
+  // appUrl so preview links resolve to the right host without manual env-var setup.
+  VERCEL_ENV: z.enum(["production", "preview", "development"]).optional(),
+  VERCEL_URL: z.string().optional(),
+  VERCEL_PROJECT_PRODUCTION_URL: z.string().optional(),
 
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   LOSS_HARD_CAP_GBP: z.coerce.number().default(8000),
@@ -35,15 +41,32 @@ const ConfigSchema = z.object({
     ),
 });
 
-export type AppConfig = Readonly<z.infer<typeof ConfigSchema>>;
+type RawConfig = z.infer<typeof ConfigSchema>;
+
+export interface AppConfig extends Readonly<RawConfig> {
+  readonly APP_URL: string;
+}
+
+const computeAppUrl = (raw: RawConfig): string => {
+  if (raw.VERCEL_ENV === "production" && raw.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${raw.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  if (raw.VERCEL_URL) return `https://${raw.VERCEL_URL}`;
+  if (raw.NEXT_PUBLIC_APP_URL) return raw.NEXT_PUBLIC_APP_URL;
+  return "http://localhost:3000";
+};
 
 let _cached: AppConfig | null = null;
 
 export const loadConfig = (): AppConfig => {
   if (_cached !== null) return _cached;
   const parsed = ConfigSchema.parse(process.env);
-  _cached = Object.freeze(parsed);
-  return _cached;
+  const config: AppConfig = Object.freeze({
+    ...parsed,
+    APP_URL: computeAppUrl(parsed),
+  });
+  _cached = config;
+  return config;
 };
 
 export const __resetConfigForTests = (): void => {

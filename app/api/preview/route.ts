@@ -55,7 +55,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         cache,
         templateStore,
         loadTemplate: loadTradeTemplate,
-        appUrl: config.NEXT_PUBLIC_APP_URL,
+        appUrl: config.APP_URL,
         logger: reqLogger,
         clock,
       },
