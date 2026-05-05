@@ -84,3 +84,8 @@ export interface Clock {
 export interface IdGen {
   readonly newId: () => string;
 }
+
+export interface TemplateStorePort {
+  readonly put: (slug: string, html: string) => Promise<void>;
+  readonly get: (slug: string) => Promise<Maybe<string>>;
+}

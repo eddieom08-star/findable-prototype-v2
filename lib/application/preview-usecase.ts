@@ -1,4 +1,5 @@
 import { Result } from "true-myth";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import type {
   CachePort,
   Clock,
@@ -6,6 +7,7 @@ import type {
   KeywordVolumePort,
   PlacesLookupResult,
   PlacesPort,
+  TemplateStorePort,
 } from "./ports";
 import type { Logger } from "@/lib/infrastructure/logger";
 import {
@@ -13,6 +15,7 @@ import {
   type KeywordVolume,
   type PreviewRequest,
   type PreviewResponse,
+  type Trade,
 } from "@/lib/domain/schemas";
 import { computeLoss } from "@/lib/domain/loss-calc";
 import {
@@ -20,6 +23,8 @@ import {
   totalVolumeOf,
 } from "@/lib/domain/keyword-volume-fallback";
 import { KEYWORD_OVERLAP_DISCOUNT } from "@/lib/domain/trade-config";
+import { renderTemplate, type TemplateData } from "@/lib/domain/template-render";
+import { slugify, normalisePostcode } from "@/lib/infrastructure/cache/keys";
 import type { DomainError, IntegrationError } from "@/lib/domain/errors";
 
 export interface PreviewDeps {
@@ -27,12 +32,17 @@ export interface PreviewDeps {
   readonly places: PlacesPort;
   readonly volume: KeywordVolumePort;
   readonly cache: CachePort;
+  readonly templateStore: TemplateStorePort;
+  readonly loadTemplate: (trade: Trade) => string;
+  readonly appUrl: string;
   readonly logger: Logger;
   readonly clock: Clock;
 }
 
 const PLACES_API_COST_USD = 0.066;
 const DATAFORSEO_API_COST_USD = 0.075;
+const FALLBACK_PHOTO_PLACEHOLDER = (n: number): string =>
+  `https://placehold.co/800x600/1E3A5F/F5F0E6?text=Photo+${n}`;
 
 const integrationToDomain = (
   err: IntegrationError,
@@ -64,6 +74,49 @@ const integrationToDomain = (
     case "http":
       return { kind: "internal", cause: err };
   }
+};
+
+const buildSlug = (businessName: string, postcode: string): string =>
+  `${slugify(businessName)}-${normalisePostcode(postcode).replace(/\s+/g, "").toLowerCase()}`;
+
+const toE164 = (raw: string): string => {
+  const parsed = parsePhoneNumberFromString(raw, "GB");
+  return parsed === undefined ? raw : parsed.format("E.164");
+};
+
+const formatDate = (d: Date): string =>
+  new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+
+const buildTemplateData = (input: {
+  business_name: string;
+  town: string;
+  phone: string;
+  formatted_phone: string | null;
+  rating: number | null;
+  review_count: number | null;
+  photos: readonly string[];
+  asOfDate: Date;
+}): TemplateData => {
+  const photo1 = input.photos[0] ?? FALLBACK_PHOTO_PLACEHOLDER(1);
+  const photo2 = input.photos[1] ?? FALLBACK_PHOTO_PLACEHOLDER(2);
+  const photo3 = input.photos[2] ?? FALLBACK_PHOTO_PLACEHOLDER(3);
+  return {
+    business_name: input.business_name,
+    town: input.town,
+    phone: input.formatted_phone ?? input.phone,
+    phone_href: toE164(input.formatted_phone ?? input.phone),
+    rating: input.rating !== null ? input.rating.toFixed(1) : undefined,
+    review_count: input.review_count ?? undefined,
+    photo_1_url: photo1,
+    photo_2_url: photo2,
+    photo_3_url: photo3,
+    as_of_date: formatDate(input.asOfDate),
+  };
 };
 
 export const runPreview = async (
@@ -150,6 +203,22 @@ export const runPreview = async (
     avg_job_value: input.avg_job_value,
   });
 
+  const slug = buildSlug(input.business_name, input.postcode);
+  const templateData = buildTemplateData({
+    business_name: placesData?.business.name ?? input.business_name,
+    town: geo.town,
+    phone: input.phone,
+    formatted_phone: placesData?.business.formatted_phone ?? null,
+    rating: placesData?.business.rating ?? null,
+    review_count: placesData?.business.review_count ?? null,
+    photos: placesData?.business.photos ?? [],
+    asOfDate: startedAt,
+  });
+  const templateString = deps.loadTemplate(input.trade);
+  const renderedHtml = renderTemplate(templateString, templateData);
+  await deps.templateStore.put(slug, renderedHtml);
+  const previewUrl = `${deps.appUrl}/sites/${slug}`;
+
   const elapsed = Date.now() - startedAt.getTime();
   const asOfDate = startedAt.toISOString().slice(0, 10);
 
@@ -219,7 +288,7 @@ export const runPreview = async (
       request_id: requestId,
       as_of_date: asOfDate,
     },
-    preview_url: null,
+    preview_url: previewUrl,
   };
 
   deps.logger.info("preview generated", {
@@ -232,6 +301,7 @@ export const runPreview = async (
     monthly_loss_gbp: loss.monthly_pounds,
     volume_source: volumeSource,
     api_cost_usd: apiCostUsd,
+    preview_slug: slug,
   });
 
   return Result.ok(response);

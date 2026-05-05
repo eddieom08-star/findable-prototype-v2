@@ -7,11 +7,17 @@ import type {
   KeywordVolumePort,
   PlacesLookupResult,
   PlacesPort,
+  TemplateStorePort,
 } from "./ports";
-import type { GeoResult, KeywordVolume, PreviewRequest } from "@/lib/domain/schemas";
+import type { GeoResult, KeywordVolume, PreviewRequest, Trade } from "@/lib/domain/schemas";
 import type { IntegrationError } from "@/lib/domain/errors";
 import { createLogger } from "@/lib/infrastructure/logger";
 import { createMemoryCache } from "@/lib/infrastructure/cache/memory-cache";
+import { createMemoryTemplateStore } from "@/lib/infrastructure/template-store/memory-template-store";
+
+const STUB_TEMPLATE = "<html><body><h1>{{business_name}} in {{town}}</h1><p>{{phone}}</p></body></html>";
+const stubTemplateLoader = (_trade: Trade): string => STUB_TEMPLATE;
+const APP_URL = "http://localhost:3000";
 
 const silentLogger = createLogger({ LOG_LEVEL: "error" });
 const fixedClock = { now: () => new Date("2026-05-04T12:00:00Z") };
@@ -80,6 +86,9 @@ describe("runPreview (real loss-calc wired)", () => {
         places: okPlaces,
         volume: okVolume,
         cache: createMemoryCache(),
+        templateStore: createMemoryTemplateStore(),
+        loadTemplate: stubTemplateLoader,
+        appUrl: APP_URL,
         logger: silentLogger,
         clock: fixedClock,
       },
@@ -98,6 +107,9 @@ describe("runPreview (real loss-calc wired)", () => {
       expect(result.value.search.keyword_breakdown).toHaveLength(4);
       expect(result.value.competitors.current_rank).toBe(8);
       expect(result.value.meta.api_cost_usd).toBeGreaterThan(0.06);
+      expect(result.value.preview_url).toBe(
+        "http://localhost:3000/sites/wigan-plumbing-co-wn12ab",
+      );
     }
   });
 
@@ -112,6 +124,9 @@ describe("runPreview (real loss-calc wired)", () => {
         places: okPlaces,
         volume: failingVolume,
         cache: createMemoryCache(),
+        templateStore: createMemoryTemplateStore(),
+        loadTemplate: stubTemplateLoader,
+        appUrl: APP_URL,
         logger: silentLogger,
         clock: fixedClock,
       },
@@ -140,6 +155,9 @@ describe("runPreview (real loss-calc wired)", () => {
         places: okPlaces,
         volume: trackedVolume,
         cache,
+        templateStore: createMemoryTemplateStore(),
+        loadTemplate: stubTemplateLoader,
+        appUrl: APP_URL,
         logger: silentLogger,
         clock: fixedClock,
       },
@@ -163,6 +181,9 @@ describe("runPreview (real loss-calc wired)", () => {
         places,
         volume: okVolume,
         cache: createMemoryCache(),
+        templateStore: createMemoryTemplateStore(),
+        loadTemplate: stubTemplateLoader,
+        appUrl: APP_URL,
         logger: silentLogger,
         clock: fixedClock,
       },
@@ -187,6 +208,9 @@ describe("runPreview (real loss-calc wired)", () => {
         places,
         volume: okVolume,
         cache: createMemoryCache(),
+        templateStore: createMemoryTemplateStore(),
+        loadTemplate: stubTemplateLoader,
+        appUrl: APP_URL,
         logger: silentLogger,
         clock: fixedClock,
       },
@@ -207,6 +231,9 @@ describe("runPreview (real loss-calc wired)", () => {
         places,
         volume: okVolume,
         cache: createMemoryCache(),
+        templateStore: createMemoryTemplateStore(),
+        loadTemplate: stubTemplateLoader,
+        appUrl: APP_URL,
         logger: silentLogger,
         clock: fixedClock,
       },
@@ -230,6 +257,9 @@ describe("runPreview (real loss-calc wired)", () => {
         places: okPlaces,
         volume: okVolume,
         cache: createMemoryCache(),
+        templateStore: createMemoryTemplateStore(),
+        loadTemplate: stubTemplateLoader,
+        appUrl: APP_URL,
         logger: silentLogger,
         clock: fixedClock,
       },

@@ -7,6 +7,8 @@ import { createCache } from "@/lib/infrastructure/cache";
 import { createPostcodesIoAdapter } from "@/lib/infrastructure/integrations/postcodes-io";
 import { createPlacesAdapter } from "@/lib/infrastructure/integrations/places";
 import { createDataForSeoAdapter } from "@/lib/infrastructure/integrations/dataforseo";
+import { createTemplateStore } from "@/lib/infrastructure/template-store";
+import { loadTradeTemplate } from "@/lib/infrastructure/template-loader";
 import { runPreview } from "@/lib/application/preview-usecase";
 import { mapDomainErrorToHttp } from "@/lib/interface/http/error-mapper";
 
@@ -21,6 +23,7 @@ const cache = createCache(config, logger);
 const geo = createPostcodesIoAdapter(cache, logger);
 const places = createPlacesAdapter(config, logger);
 const volume = createDataForSeoAdapter(config, logger);
+const templateStore = createTemplateStore(config, logger);
 const clock = { now: () => new Date() };
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
@@ -45,7 +48,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const result = await runPreview(
       input,
-      { geo, places, volume, cache, logger: reqLogger, clock },
+      {
+        geo,
+        places,
+        volume,
+        cache,
+        templateStore,
+        loadTemplate: loadTradeTemplate,
+        appUrl: config.NEXT_PUBLIC_APP_URL,
+        logger: reqLogger,
+        clock,
+      },
       requestId,
     );
 
