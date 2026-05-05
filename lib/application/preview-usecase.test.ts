@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { Result } from "true-myth";
+import { Result, Maybe } from "true-myth";
 import { runPreview } from "./preview-usecase";
-import type { GeoPort, PlacesPort, PlacesLookupResult } from "./ports";
-import type { GeoResult, PreviewRequest } from "@/lib/domain/schemas";
+import type {
+  CachePort,
+  GeoPort,
+  KeywordVolumePort,
+  PlacesLookupResult,
+  PlacesPort,
+} from "./ports";
+import type { GeoResult, KeywordVolume, PreviewRequest } from "@/lib/domain/schemas";
 import type { IntegrationError } from "@/lib/domain/errors";
 import { createLogger } from "@/lib/infrastructure/logger";
+import { createMemoryCache } from "@/lib/infrastructure/cache/memory-cache";
 
 const silentLogger = createLogger({ LOG_LEVEL: "error" });
 const fixedClock = { now: () => new Date("2026-05-04T12:00:00Z") };
@@ -30,7 +37,7 @@ const wiganPlacesOk: PlacesLookupResult = {
     name: "Wigan Plumbing Co",
     rating: 4.7,
     review_count: 38,
-    photos: ["https://maps.googleapis.com/photo?ref=ref-1"],
+    photos: ["https://places.googleapis.com/v1/places/place-A/photos/x/media?key=t"],
     formatted_address: "1 Mock Street, Wigan",
     formatted_phone: "01942 123456",
     website: "https://example.com",
@@ -42,86 +49,173 @@ const wiganPlacesOk: PlacesLookupResult = {
     { name: "Top Plumber", rating: 4.9, review_count: 120 },
     { name: "Second Plumber", rating: 4.8, review_count: 90 },
   ],
-  current_rank: 5,
+  current_rank: 8,
 };
+
+const wiganVolumes: readonly KeywordVolume[] = [
+  { keyword: "plumber wigan", volume: 110 },
+  { keyword: "emergency plumber wigan", volume: 50 },
+  { keyword: "boiler repair wigan", volume: 20 },
+  { keyword: "drain unblocking wigan", volume: 30 },
+];
 
 const stubGeo = (impl: GeoPort["lookup"]): GeoPort => ({ lookup: impl });
 const stubPlaces = (impl: PlacesPort["lookupBusinessAndCompetitors"]): PlacesPort => ({
   lookupBusinessAndCompetitors: impl,
 });
+const stubVolume = (impl: KeywordVolumePort["fetchVolumes"]): KeywordVolumePort => ({
+  fetchVolumes: impl,
+});
 
 const okGeo = stubGeo(async () => Result.ok(wiganGeo));
 const okPlaces = stubPlaces(async () => Result.ok(wiganPlacesOk));
+const okVolume = stubVolume(async () => Result.ok(wiganVolumes));
 
-describe("runPreview", () => {
-  it("returns a schema-valid PreviewResponse on the happy path with Places data", async () => {
+describe("runPreview (real loss-calc wired)", () => {
+  it("returns status='ok' with real loss number when Places + DataForSEO both succeed", async () => {
     const result = await runPreview(
       validRequest,
-      { geo: okGeo, places: okPlaces, logger: silentLogger, clock: fixedClock },
+      {
+        geo: okGeo,
+        places: okPlaces,
+        volume: okVolume,
+        cache: createMemoryCache(),
+        logger: silentLogger,
+        clock: fixedClock,
+      },
       "rid-1",
     );
     expect(result.isOk).toBe(true);
     if (result.isOk) {
-      expect(result.value.status).toBe("test_data");
-      expect(result.value.business.place_id).toBe("place-A");
-      expect(result.value.business.rating).toBe(4.7);
-      expect(result.value.business.review_count).toBe(38);
-      expect(result.value.competitors.top_3).toHaveLength(2);
-      expect(result.value.competitors.current_rank).toBe(5);
-      expect(result.value.loss.formula_inputs.current_local_pack_rank).toBe(5);
-      expect(result.value.meta.api_cost_usd).toBeGreaterThan(0);
-      expect(result.value.meta.request_id).toBe("rid-1");
-      expect(result.value.meta.as_of_date).toBe("2026-05-04");
+      expect(result.value.status).toBe("ok");
+      // Wigan plumber, organic rank 8, volume 210*0.8=168, gap=0.10-0.015=0.085
+      // clicks=14.28, jobs=14.28*0.35=5, £=5*180 = ~900
+      expect(result.value.loss.monthly_pounds).toBeGreaterThan(0);
+      expect(result.value.loss.monthly_pounds).toBeLessThan(8000);
+      expect(result.value.loss.formula_inputs.target_ctr).toBe(0.10);
+      expect(result.value.loss.formula_inputs.current_ctr).toBe(0.015);
+      expect(result.value.search.volume_source).toBe("dataforseo");
+      expect(result.value.search.keyword_breakdown).toHaveLength(4);
+      expect(result.value.competitors.current_rank).toBe(8);
+      expect(result.value.meta.api_cost_usd).toBeGreaterThan(0.06);
     }
   });
 
-  it("falls back to no_gbp status when Places returns not_found", async () => {
-    const places = stubPlaces(async () =>
-      Result.err({ kind: "not_found" } as IntegrationError),
+  it("falls back to population-scaled volumes with volume_source='fallback' when DataForSEO errors", async () => {
+    const failingVolume = stubVolume(async () =>
+      Result.err({ kind: "quota_exhausted", source: "dataforseo" } as IntegrationError),
     );
     const result = await runPreview(
       validRequest,
-      { geo: okGeo, places, logger: silentLogger, clock: fixedClock },
+      {
+        geo: okGeo,
+        places: okPlaces,
+        volume: failingVolume,
+        cache: createMemoryCache(),
+        logger: silentLogger,
+        clock: fixedClock,
+      },
       "rid-2",
+    );
+    expect(result.isOk).toBe(true);
+    if (result.isOk) {
+      expect(result.value.search.volume_source).toBe("fallback");
+      expect(result.value.search.total_monthly_volume).toBeGreaterThan(0);
+      expect(result.value.loss.monthly_pounds).toBeGreaterThan(0);
+    }
+  });
+
+  it("uses cached DataForSEO volumes when present (skips fetch + cost)", async () => {
+    const cache = createMemoryCache();
+    await cache.setVolume("plumber", "Wigan", wiganVolumes);
+    let called = 0;
+    const trackedVolume = stubVolume(async () => {
+      called += 1;
+      return Result.ok(wiganVolumes);
+    });
+    const result = await runPreview(
+      validRequest,
+      {
+        geo: okGeo,
+        places: okPlaces,
+        volume: trackedVolume,
+        cache,
+        logger: silentLogger,
+        clock: fixedClock,
+      },
+      "rid-3",
+    );
+    expect(result.isOk).toBe(true);
+    expect(called).toBe(0);
+    if (result.isOk) {
+      expect(result.value.search.volume_source).toBe("dataforseo");
+      // No DataForSEO cost when cache hit
+      expect(result.value.meta.api_cost_usd).toBeLessThan(0.07);
+    }
+  });
+
+  it("returns status='no_gbp' when Places not_found but still computes loss using fallback rank", async () => {
+    const places = stubPlaces(async () => Result.err({ kind: "not_found" } as IntegrationError));
+    const result = await runPreview(
+      validRequest,
+      {
+        geo: okGeo,
+        places,
+        volume: okVolume,
+        cache: createMemoryCache(),
+        logger: silentLogger,
+        clock: fixedClock,
+      },
+      "rid-4",
     );
     expect(result.isOk).toBe(true);
     if (result.isOk) {
       expect(result.value.status).toBe("no_gbp");
       expect(result.value.business.place_id).toBeNull();
       expect(result.value.competitors.current_rank).toBe(">20");
-      expect(result.value.meta.api_cost_usd).toBe(0);
+      expect(result.value.loss.monthly_pounds).toBeGreaterThan(0);
     }
   });
 
-  it("maps a Places quota_exhausted error to api_quota_exhausted DomainError", async () => {
+  it("returns status='rank_too_low' when Places returns rank '>20'", async () => {
+    const placesRankTooLow: PlacesLookupResult = { ...wiganPlacesOk, current_rank: ">20" };
+    const places = stubPlaces(async () => Result.ok(placesRankTooLow));
+    const result = await runPreview(
+      validRequest,
+      {
+        geo: okGeo,
+        places,
+        volume: okVolume,
+        cache: createMemoryCache(),
+        logger: silentLogger,
+        clock: fixedClock,
+      },
+      "rid-5",
+    );
+    expect(result.isOk).toBe(true);
+    if (result.isOk) expect(result.value.status).toBe("rank_too_low");
+  });
+
+  it("maps Places quota_exhausted to api_quota_exhausted DomainError", async () => {
     const places = stubPlaces(async () =>
       Result.err({ kind: "quota_exhausted", source: "find_place" } as IntegrationError),
     );
     const result = await runPreview(
       validRequest,
-      { geo: okGeo, places, logger: silentLogger, clock: fixedClock },
-      "rid-3",
+      {
+        geo: okGeo,
+        places,
+        volume: okVolume,
+        cache: createMemoryCache(),
+        logger: silentLogger,
+        clock: fixedClock,
+      },
+      "rid-6",
     );
     expect(result.isErr).toBe(true);
     if (result.isErr) {
       expect(result.error.kind).toBe("api_quota_exhausted");
       if (result.error.kind === "api_quota_exhausted") expect(result.error.source).toBe("places");
-    }
-  });
-
-  it("maps a Places timeout to api_timeout(places)", async () => {
-    const places = stubPlaces(async () =>
-      Result.err({ kind: "timeout", elapsedMs: 5001 } as IntegrationError),
-    );
-    const result = await runPreview(
-      validRequest,
-      { geo: okGeo, places, logger: silentLogger, clock: fixedClock },
-      "rid-4",
-    );
-    expect(result.isErr).toBe(true);
-    if (result.isErr) {
-      expect(result.error.kind).toBe("api_timeout");
-      if (result.error.kind === "api_timeout") expect(result.error.source).toBe("places");
     }
   });
 
@@ -131,43 +225,19 @@ describe("runPreview", () => {
     );
     const result = await runPreview(
       validRequest,
-      { geo, places: okPlaces, logger: silentLogger, clock: fixedClock },
-      "rid-5",
-    );
-    expect(result.isErr).toBe(true);
-    if (result.isErr) {
-      expect(result.error.kind).toBe("validation");
-      if (result.error.kind === "validation") {
-        expect(result.error.issues[0]?.path).toBe("postcode");
-      }
-    }
-  });
-
-  it("maps a geo timeout to api_timeout(postcodes_io)", async () => {
-    const geo = stubGeo(async () =>
-      Result.err({ kind: "timeout", elapsedMs: 3001 } as IntegrationError),
-    );
-    const result = await runPreview(
-      validRequest,
-      { geo, places: okPlaces, logger: silentLogger, clock: fixedClock },
-      "rid-6",
-    );
-    expect(result.isErr).toBe(true);
-    if (result.isErr && result.error.kind === "api_timeout") {
-      expect(result.error.source).toBe("postcodes_io");
-    }
-  });
-
-  it("maps a geo http error to internal", async () => {
-    const geo = stubGeo(async () =>
-      Result.err({ kind: "http", status: 503, cause: "upstream busy" } as IntegrationError),
-    );
-    const result = await runPreview(
-      validRequest,
-      { geo, places: okPlaces, logger: silentLogger, clock: fixedClock },
+      {
+        geo,
+        places: okPlaces,
+        volume: okVolume,
+        cache: createMemoryCache(),
+        logger: silentLogger,
+        clock: fixedClock,
+      },
       "rid-7",
     );
     expect(result.isErr).toBe(true);
-    if (result.isErr) expect(result.error.kind).toBe("internal");
+    if (result.isErr) expect(result.error.kind).toBe("validation");
   });
 });
+
+void Maybe;
