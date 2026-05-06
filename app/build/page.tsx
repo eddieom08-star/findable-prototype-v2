@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { getPreviewResponse } from "@/lib/session-state";
+
+export const dynamic = "force-dynamic";
 
 const BEATS = [
   "Found your Google Business Profile",
@@ -14,9 +16,19 @@ const BEATS = [
 
 const BEAT_DURATION_MS = 1800;
 
+const slugFromResponse = (preview_url: string | null): string => {
+  if (preview_url === null) return "preview";
+  try {
+    const url = new URL(preview_url);
+    const last = url.pathname.split("/").filter(Boolean).pop();
+    return last ?? "preview";
+  } catch {
+    return "preview";
+  }
+};
+
 export default function BuildPage(): React.ReactElement {
   const router = useRouter();
-  const params = useSearchParams();
   const [beat, setBeat] = useState(0);
   const [response, setResponse] = useState<ReturnType<typeof getPreviewResponse>>(null);
 
@@ -36,11 +48,10 @@ export default function BuildPage(): React.ReactElement {
       return () => window.clearTimeout(id);
     }
     const id = window.setTimeout(() => {
-      const slug = params.get("slug") ?? "preview";
-      router.push(`/reveal/${slug}`);
+      router.push(`/reveal/${slugFromResponse(response.preview_url)}`);
     }, BEAT_DURATION_MS);
     return () => window.clearTimeout(id);
-  }, [beat, response, router, params]);
+  }, [beat, response, router]);
 
   return (
     <main className="min-h-[80vh] flex flex-col items-center justify-center px-6">
