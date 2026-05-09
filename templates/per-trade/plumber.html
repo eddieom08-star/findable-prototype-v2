@@ -33,8 +33,10 @@
   .hero { background: var(--navy); color: var(--cream); }
   .hero-photo {
     position: relative; width: 100%; aspect-ratio: 16/10;
-    background: var(--charcoal) center/cover no-repeat;
-    background-image: url("{{photo_1_url}}");
+    background-color: var(--charcoal);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
     overflow: hidden;
   }
   .hero-photo::after {
@@ -94,8 +96,10 @@
   .about-inner { display: grid; grid-template-columns: 1fr; gap: 18px; }
   .about-photo {
     width: 100%; aspect-ratio: 4/3;
-    background: var(--charcoal) center/cover no-repeat;
-    background-image: url("{{photo_2_url}}");
+    background-color: var(--charcoal);
+    background-position: center;
+    background-size: cover;
+    background-repeat: no-repeat;
     border-radius: 6px;
   }
   .about-copy p { margin: 0 0 12px 0; }
@@ -136,7 +140,7 @@
 <body>
 
 <header class="hero">
-  <div class="hero-photo" role="img" aria-label="{{business_name}} work photo">
+  <div class="hero-photo" style="background-image: url('{{photo_1_url}}')" role="img" aria-label="{{business_name}} work photo">
     <div class="hero-overlay">
       <h1>{{business_name}}</h1>
       <p class="town">Plumbers in {{town}}</p>
@@ -180,7 +184,7 @@
   <section>
     <h2>About us</h2>
     <div class="about-inner">
-      <div class="about-photo" role="img" aria-label="{{business_name}} at work"></div>
+      <div class="about-photo" style="background-image: url('{{photo_2_url}}')" role="img" aria-label="{{business_name}} at work"></div>
       <div class="about-copy">
         <p>When your boiler packs in at midnight or the tap in the kitchen won't stop dripping, you don't want a sales pitch — you want it sorted.</p>
         <p>That's the job. Show up when we say we will, fix it once, leave the place tidy. Most of our work in {{town}} comes from neighbours and old customers, so we look after both.</p>
