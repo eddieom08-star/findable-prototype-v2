@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CyclingPill } from "./CyclingPill";
 import { TRADE_SUGGESTIONS, normaliseTrade } from "@/lib/domain/landing-trades";
@@ -75,7 +75,7 @@ export const HeroAndForm = (): React.ReactElement => {
     setErrors({ ...errors, [field]: v[field] });
   };
 
-  const onSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
+  const onSubmit = async (e: { preventDefault: () => void }): Promise<void> => {
     e.preventDefault();
     const v = validate(draft);
     setErrors(v);
@@ -220,19 +220,24 @@ export const HeroAndForm = (): React.ReactElement => {
             error={errors.avg_job_value}
           >
             <div className="relative">
-              <span className="absolute left-[14px] top-1/2 -translate-y-1/2 text-[color:var(--muted)] font-medium z-10">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--muted)] font-medium z-10 leading-none"
+              >
                 £
               </span>
               <input
-                type="number"
-                className="form-input pl-7"
-                placeholder="180"
-                min={10}
-                max={10000}
-                value={draft.avg_job_value ?? ""}
-                onChange={(e) => update("avg_job_value", e.target.value)}
-                onBlur={() => blurValidate("avg_job_value")}
+                type="text"
                 inputMode="numeric"
+                pattern="[0-9]*"
+                className="form-input"
+                style={{ paddingLeft: 32 }}
+                placeholder="180"
+                value={draft.avg_job_value ?? ""}
+                onChange={(e) =>
+                  update("avg_job_value", e.target.value.replace(/[^0-9]/g, ""))
+                }
+                onBlur={() => blurValidate("avg_job_value")}
                 required
               />
             </div>
