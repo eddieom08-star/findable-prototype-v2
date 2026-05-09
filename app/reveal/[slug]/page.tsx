@@ -149,7 +149,7 @@ export default function RevealPage(): React.ReactElement {
                 <iframe
                   src={response.preview_url}
                   title="Your Findable preview site"
-                  className="w-full h-[640px] md:h-[720px]"
+                  className="w-full h-[1800px]"
                   loading="lazy"
                   sandbox="allow-same-origin allow-popups"
                 />

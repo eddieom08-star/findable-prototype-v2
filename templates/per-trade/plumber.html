@@ -30,19 +30,21 @@
   .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
 
   /* HERO */
-  .hero { position: relative; background: var(--navy); color: var(--cream); }
+  .hero { background: var(--navy); color: var(--cream); }
   .hero-photo {
     position: relative; width: 100%; aspect-ratio: 16/10;
     background: var(--charcoal) center/cover no-repeat;
     background-image: url("{{photo_1_url}}");
+    overflow: hidden;
   }
   .hero-photo::after {
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(30,58,95,0.15) 0%, rgba(30,58,95,0.85) 85%);
+    content: ""; position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(180deg, rgba(30,58,95,0) 35%, rgba(30,58,95,0.78) 100%);
+    pointer-events: none;
   }
   .hero-overlay {
     position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 24px 20px; z-index: 1;
+    padding: 24px 20px; z-index: 2;
   }
   .hero-overlay h1 {
     font-family: Georgia, "Times New Roman", serif;
@@ -134,10 +136,11 @@
 <body>
 
 <header class="hero">
-  <div class="hero-photo" role="img" aria-label="{{business_name}} work photo"></div>
-  <div class="hero-overlay">
-    <h1>{{business_name}}</h1>
-    <p class="town">Plumbers in {{town}}</p>
+  <div class="hero-photo" role="img" aria-label="{{business_name}} work photo">
+    <div class="hero-overlay">
+      <h1>{{business_name}}</h1>
+      <p class="town">Plumbers in {{town}}</p>
+    </div>
   </div>
   <div class="hero-cta">
     <a class="btn btn-primary" href="tel:{{phone_href}}">Call {{phone}}</a>
